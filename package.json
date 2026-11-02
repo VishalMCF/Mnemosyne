@@ -1,0 +1,23 @@
+{
+  "name": "mnemosyne",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @mnemosyne/web dev",
+    "build": "pnpm --filter @mnemosyne/web build",
+    "start": "pnpm --filter @mnemosyne/web start",
+    "lint": "pnpm --filter @mnemosyne/web lint",
+    "typecheck": "pnpm --filter @mnemosyne/web typecheck",
+    "test": "pnpm --filter @mnemosyne/web test",
+    "test:e2e": "pnpm --filter @mnemosyne/web test:e2e",
+    "db:generate": "pnpm --filter @mnemosyne/web db:generate",
+    "db:migrate": "pnpm --filter @mnemosyne/web db:migrate",
+    "db:setup": "pnpm db:generate && pnpm db:migrate"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2"
+  }
+}

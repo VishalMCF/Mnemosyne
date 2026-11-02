@@ -1,0 +1,28 @@
+# AI pipeline
+
+## Provider boundary
+
+AI calls stay behind the provider-independent server-side interface in `packages/ai`. The initial provider is OpenAI; local and other remote providers can be added without changing learning-domain contracts.
+
+```ts
+interface AIProvider {
+  generateStructured<T>(prompt: string, schema: unknown): Promise<T>;
+  evaluateResponse(input: EvaluationInput): Promise<EvaluationResult>;
+}
+```
+
+Validate structured responses with Zod before persistence. Never expose API keys or provider configuration to browser bundles.
+
+## Explicit, separate processing
+
+File validation, deterministic parsing, chunking, and local persistence happen before AI extraction. AI processing is a distinct user-triggered action and sends bounded chunks from only the selected document. A provider failure leaves the imported document and parsed content intact and retryable. No document is sent remotely merely because it was imported.
+
+## Grounding and untrusted content
+
+The source document is the evidence for extraction and evaluation. Every concept and exercise carries document and section references. Evaluation returns correctness, completeness, explanation, missing points, misconceptions, and evidence references. The model is an assistant, not the authority: feedback must be traceable to source material and reviewable.
+
+Treat document content as untrusted quoted data. Do not provide tools to extraction/evaluation calls. Ignore embedded requests to change instructions, access secrets, or perform actions. Bound input size and validate all returned fields.
+
+## Versioning
+
+Persist provider/model identity, prompt version, schema version, and timestamp for generated artifacts. Reprocessing should create a new extraction version while preserving learner response and scheduling history.

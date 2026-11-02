@@ -1,0 +1,26 @@
+# Local documents, databases, backups, and generated runtime data
+/data/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+
+# Dependencies and build output
+node_modules/
+.next/
+out/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
