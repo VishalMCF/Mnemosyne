@@ -20,7 +20,7 @@ describe("Markdown ingestion", () => {
       "```mermaid",
       "flowchart LR",
       "Client[Browser] -->|sends| API[Handler]",
-      "API --> DB[(SQLite)]",
+      "API --> DB[(SQLite)] --> Cache[Cache]",
       "```",
     ].join("\n");
     const parsed = parseMarkdown("doc-1", markdown);
@@ -33,7 +33,7 @@ describe("Markdown ingestion", () => {
     expect(parsed.diagrams).toHaveLength(1);
     expect(parsed.diagrams[0]?.startLine).toBe(14);
     expect(parsed.diagrams[0]?.graph.nodes.map((node) => node.label)).toContain("Browser");
-    expect(parsed.diagrams[0]?.graph.edges).toHaveLength(2);
+    expect(parsed.diagrams[0]?.graph.edges).toHaveLength(3);
   });
 
   it("handles content without headings as an introduction section", () => {

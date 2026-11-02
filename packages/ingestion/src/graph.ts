@@ -1,6 +1,6 @@
 import type { DiagramType, KnowledgeGraph } from "./types";
 
-const idPattern = "[\\w$.-]+";
+const idPattern = "[\\w$.-]{1,200}";
 const MAX_GRAPH_NODES = 2_000;
 const MAX_GRAPH_EDGES = 4_000;
 
@@ -23,16 +23,19 @@ export function extractGraph(source: string, type: DiagramType): KnowledgeGraph 
       if (!nodes.has(id)) nodes.set(id, { id, label: "Start / end", type: "state_marker" });
       return;
     }
-    const existing = nodes.get(id);
+    const boundedId = id.slice(0, 200);
+    const existing = nodes.get(boundedId);
     if (existing) {
-      if (label?.trim()) existing.label = label.trim();
+      if (label?.trim()) existing.label = label.trim().slice(0, 500);
       if (nodeType !== "component") existing.type = nodeType;
-    } else nodes.set(id, { id, label: label?.trim() || id, type: nodeType });
+    } else nodes.set(boundedId, { id: boundedId, label: label?.trim().slice(0, 500) || boundedId, type: nodeType });
   };
   const addEdge = (sourceId: string, targetId: string, relationship: string) => {
-    addNode(sourceId);
-    addNode(targetId);
-    if (edges.length < MAX_GRAPH_EDGES && nodes.has(sourceId) && nodes.has(targetId)) edges.push({ source: sourceId, target: targetId, relationship: relationship.slice(0, 300) });
+    const source = sourceId === "[*]" ? sourceId : sourceId.slice(0, 200);
+    const target = targetId === "[*]" ? targetId : targetId.slice(0, 200);
+    addNode(source);
+    addNode(target);
+    if (edges.length < MAX_GRAPH_EDGES && nodes.has(source) && nodes.has(target)) edges.push({ source, target, relationship: relationship.slice(0, 300) });
   };
 
   for (const raw of source.split(/\r?\n/)) {
@@ -41,10 +44,13 @@ export function extractGraph(source: string, type: DiagramType): KnowledgeGraph 
     if (type === "flowchart") {
       const endpoint = `(${idPattern})(?:\\s*(?:\\[[^\\]]*\\]|\\([^)]*\\)|\\{[^}]*\\}))?`;
       const edgePattern = new RegExp(`${endpoint}\\s*(-->|---|==>|-\\.->|--o|--x|<--|<---)\\s*(?:\\|([^|]*)\\|\\s*)?${endpoint}`, "g");
-      for (const edge of line.matchAll(edgePattern)) {
+      let edge: RegExpExecArray | null;
+      while ((edge = edgePattern.exec(line)) !== null) {
         addNode(edge[1], nodeLabel(line, edge[1]));
         addNode(edge[4], nodeLabel(line, edge[4]));
         addEdge(edge[1], edge[4], edge[3]?.trim() || edge[2]);
+        const targetOffset = edge[0].lastIndexOf(edge[4]);
+        edgePattern.lastIndex = edge.index + Math.max(1, targetOffset);
       }
       for (const match of line.matchAll(new RegExp(`(${idPattern})\\s*(?:\\[([^\\]]+)\\]|\\(([^)]+)\\)|\\{([^}]+)\\})`, "g"))) {
         addNode(match[1], match[2] ?? match[3] ?? match[4]);

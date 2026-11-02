@@ -40,12 +40,17 @@ export async function extractDocument(documentId: string) {
   }
   if (batch.length) batches.push(batch);
   const extracted: Awaited<ReturnType<typeof provider.extractKnowledge>>[] = [];
+  const sentDiagramIds = new Set<string>();
   for (const sectionBatch of batches) {
     const orders = new Set(sectionBatch.map((item) => item.order));
+    const diagramsForBatch = sourceDiagrams
+      .filter((diagram) => !sentDiagramIds.has(diagram.id) && orders.has(sectionById.get(diagram.sectionId ?? "")?.order ?? -1))
+      .slice(0, 5);
+    for (const diagram of diagramsForBatch) sentDiagramIds.add(diagram.id);
     extracted.push(await provider.extractKnowledge({
       title: document.title,
       sections: sectionBatch,
-      diagrams: sourceDiagrams.filter((diagram) => orders.has(sectionById.get(diagram.sectionId ?? "")?.order ?? -1)).map((diagram) => ({
+      diagrams: diagramsForBatch.map((diagram) => ({
         type: diagram.type,
         source: diagram.source.slice(0, 4_000),
         graph: limitGraph(JSON.parse(diagram.graphJson) as { nodes?: unknown[]; edges?: unknown[] }),
@@ -165,5 +170,5 @@ export async function extractDocument(documentId: string) {
 }
 
 function limitGraph(graph: { nodes?: unknown[]; edges?: unknown[] }) {
-  return { nodes: (graph.nodes ?? []).slice(0, 300), edges: (graph.edges ?? []).slice(0, 600) };
+  return { nodes: (graph.nodes ?? []).slice(0, 100), edges: (graph.edges ?? []).slice(0, 200) };
 }
