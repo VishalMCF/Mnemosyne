@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { aiErrorMessage } from "@/lib/ai/error-message";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type SourceRow = {
@@ -91,21 +92,21 @@ export function LibraryClient() {
   }
 
   return <div>
-    <form onSubmit={upload} className="rounded-2xl border border-dashed border-[#cbd7cb] bg-white p-6 sm:p-8">
+    <form onSubmit={upload} className="rounded-2xl border border-dashed border-border bg-card p-6 sm:p-8">
       <label className="block text-sm font-semibold" htmlFor="markdown-files">Import Markdown files</label>
-      <p className="mt-1 text-sm leading-6 text-[var(--muted)]">Files stay on this machine. Importing only parses locally. When you choose “Extract knowledge,” document content is sent to the configured remote AI provider for processing.</p>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">Files stay on this machine. Choose “Extract knowledge” to process this source through your signed-in Codex account.</p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <input id="markdown-files" name="files" type="file" accept=".md,.markdown,text/markdown,text/plain" multiple required className="block w-full text-sm text-[var(--muted)] file:mr-3 file:rounded-lg file:border-0 file:bg-[var(--green-soft)] file:px-4 file:py-2 file:font-medium file:text-[var(--green)]" />
-        <button disabled={busy} className="shrink-0 rounded-lg bg-[var(--green)] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busy ? "Working…" : "Import locally"}</button>
+        <input id="markdown-files" name="files" type="file" accept=".md,.markdown,text/markdown,text/plain" multiple required className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:font-medium file:text-primary" />
+        <button disabled={busy} className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50">{busy ? "Working…" : "Import locally"}</button>
       </div>
-      <p className="mt-3 text-xs text-[var(--muted)]">Markdown only · up to 5 MB per file · 20 files per import</p>
+      <p className="mt-3 text-xs text-muted-foreground">Markdown only · up to 5 MB per file · 20 files per import</p>
     </form>
-    {notice && <p role="status" className="mt-4 rounded-lg bg-[var(--green-soft)] px-4 py-3 text-sm text-[var(--green)]">{notice}</p>}
-    {error && <p role="alert" className="mt-4 rounded-lg bg-[#fff0ec] px-4 py-3 text-sm text-[#9b3e2d]">{error}</p>}
+    {notice && <p role="status" className="mt-4 rounded-lg bg-accent px-4 py-3 text-sm text-primary">{notice}</p>}
+    {error && <p role="alert" className="mt-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
     <section className="mt-10">
-      <div className="mb-4 flex items-end justify-between"><div><h2 className="text-lg font-semibold">Your sources</h2><p className="mt-1 text-sm text-[var(--muted)]">{sources.length} local document{sources.length === 1 ? "" : "s"}</p></div></div>
-      {sources.length === 0 ? <div className="rounded-2xl border border-[var(--line)] bg-white p-8 text-center"><p className="font-medium">Your library is ready for its first note.</p><p className="mt-2 text-sm text-[var(--muted)]">Choose a Markdown file above to get started.</p></div> : <div className="space-y-3">{sources.map((source) => <article key={source.id} className="rounded-2xl border border-[var(--line)] bg-white p-5 sm:flex sm:items-center sm:justify-between sm:gap-6"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Link href={`/library/${source.id}`} className="truncate font-semibold hover:text-[var(--green)]">{source.title}</Link><span className="rounded-full bg-[var(--paper)] px-2.5 py-1 text-[11px] text-[var(--muted)]">{labelStatus(source.status)}</span></div><p className="mt-1 truncate text-sm text-[var(--muted)]">{source.originalFilename} · {source.sectionCount} sections · {source.conceptCount} concepts</p>{source.lastError && <p className="mt-2 text-xs text-[#9b3e2d]">{source.lastError}</p>}</div><div className="mt-4 flex shrink-0 flex-wrap gap-2 sm:mt-0">{source.status === "imported" && <button type="button" disabled={busy} onClick={() => void parse(source)} className="rounded-lg border border-[var(--line)] px-3 py-2 text-xs font-medium disabled:opacity-40">Retry local parse</button>}<button type="button" disabled={busy || source.status === "imported"} onClick={() => void extract(source)} className="rounded-lg border border-[var(--line)] px-3 py-2 text-xs font-medium text-[var(--green)] disabled:cursor-not-allowed disabled:opacity-40">{source.status === "extracted" ? "Re-extract with AI" : "Extract knowledge with AI"}</button><button type="button" disabled={busy} onClick={() => void remove(source)} className="rounded-lg border border-[var(--line)] px-3 py-2 text-xs text-[var(--muted)] disabled:opacity-40">Delete</button></div></article>)}</div>}
+      <div className="mb-4 flex items-end justify-between"><div><h2 className="text-lg font-semibold">Your sources</h2><p className="mt-1 text-sm text-muted-foreground">{sources.length} local document{sources.length === 1 ? "" : "s"}</p></div></div>
+      {sources.length === 0 ? <div className="rounded-2xl border border-border bg-card p-8 text-center"><p className="font-medium">Your library is ready for its first note.</p><p className="mt-2 text-sm text-muted-foreground">Choose a Markdown file above to get started.</p></div> : <div className="space-y-3">{sources.map((source) => <article key={source.id} className="rounded-2xl border border-border bg-card p-5 sm:flex sm:items-center sm:justify-between sm:gap-6"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Link href={`/library/${source.id}`} className="truncate font-semibold hover:text-primary">{source.title}</Link><span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">{labelStatus(source.status)}</span></div><p className="mt-1 truncate text-sm text-muted-foreground">{source.originalFilename} · {source.sectionCount} sections · {source.conceptCount} concepts</p>{source.lastError && <p className="mt-2 text-xs text-destructive">{aiErrorMessage(source.lastError)}</p>}</div><div className="mt-4 flex shrink-0 flex-wrap gap-2 sm:mt-0">{source.status === "imported" && <button type="button" disabled={busy} onClick={() => void parse(source)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Retry local parse</button>}<button type="button" disabled={busy || source.status === "imported"} onClick={() => void extract(source)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-40">{source.status === "extracted" ? "Re-extract with AI" : "Extract knowledge with AI"}</button><button type="button" disabled={busy} onClick={() => void remove(source)} className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground disabled:opacity-40">Delete</button></div></article>)}</div>}
     </section>
   </div>;
 }

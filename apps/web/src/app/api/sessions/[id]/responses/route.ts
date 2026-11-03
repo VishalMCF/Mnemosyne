@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { getAIProvider } from "@/lib/ai/provider";
-import { EVALUATION_PROMPT_VERSION, type EvaluationResult } from "@mnemosyne/ai";
+import { CodexProviderError, EVALUATION_PROMPT_VERSION, type EvaluationResult } from "@mnemosyne/ai";
 import { db } from "@/lib/db/client";
 import { concepts, documents, exerciseConcepts, exercises, masteryStates, responses, reviewStates, sections, sessionItems, sessions } from "@/lib/db/schema";
 import { errorMessage, isSameOriginRequest, jsonError } from "@/lib/http";
@@ -53,9 +53,10 @@ export async function POST(request: Request, context: Context) {
   const provenance = [...new Map<string, ExerciseProvenance>(provenanceRows.map((source) => [source.conceptId, source] as [string, ExerciseProvenance])).values()];
   if (!provenance.length) return jsonError("The source for this exercise is unavailable.", 409);
 
+  const provider = getAIProvider();
   let evaluation: EvaluationResult;
   try {
-    evaluation = await getAIProvider().evaluateResponse({
+    evaluation = await provider.evaluateResponse({
       prompt: exercise.prompt,
       expectedAnswer: exercise.expectedAnswer,
       answer: input.answer,
@@ -63,7 +64,7 @@ export async function POST(request: Request, context: Context) {
     });
   } catch (error) {
     const message = errorMessage(error);
-    return jsonError(message.includes("OPENAI_API_KEY") ? message : "Evaluation failed. Your answer has not been submitted; check AI configuration and retry.", 502);
+    return jsonError(error instanceof CodexProviderError ? message : "Evaluation failed. Your answer has not been submitted; check Codex and retry.", 502);
   }
   const citedOrders = new Set(provenance.map((source) => source.sectionOrder));
   const score = Math.round(evaluation.correctness * 0.65 + evaluation.completeness * 0.35);
@@ -90,7 +91,7 @@ export async function POST(request: Request, context: Context) {
       latencyMs: input.latencyMs,
       hintsUsed: input.hintsUsed,
       evaluationJson: JSON.stringify({ ...evaluation, score, sourceReferences }),
-      evaluatorModel: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      evaluatorModel: provider.model,
       evaluationPromptVersion: EVALUATION_PROMPT_VERSION,
     }).run();
     tx.insert(reviewStates).values({ exerciseId: exercise.id, dueAt: schedule.dueAt, intervalDays: schedule.intervalDays, repetitions: schedule.repetitions, lastQuality: quality, updatedAt: new Date() })

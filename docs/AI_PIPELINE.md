@@ -2,16 +2,18 @@
 
 ## Provider boundary
 
-AI calls stay behind the provider-independent server-side interface in `packages/ai`. The initial provider is OpenAI; local and other remote providers can be added without changing learning-domain contracts.
+AI calls stay behind the provider-independent server-side interface in `packages/ai`. The provider invokes headless Codex with the existing ChatGPT login. It defaults to `gpt-5.6-sol` and medium reasoning effort. No API key is required. `CODEX_MODEL` and `CODEX_BIN` are optional server-side settings.
 
 ```ts
 interface AIProvider {
-  generateStructured<T>(prompt: string, schema: unknown): Promise<T>;
+  extractKnowledge(input: ExtractionInput): Promise<ExtractionResult>;
   evaluateResponse(input: EvaluationInput): Promise<EvaluationResult>;
 }
 ```
 
-Validate structured responses with Zod before persistence. Never expose API keys or provider configuration to browser bundles.
+Validate structured responses with Zod before persistence. Keep Codex authentication and provider configuration server-side. Use `--output-schema` and read only the final JSON output; process logs are never treated as model output or exposed to the client.
+
+Each call uses an isolated temporary directory, stdin for input, `--ephemeral`, `--ignore-user-config`, read-only sandboxing, disabled web search and execution/integration features, and a three-minute process timeout. Force ChatGPT authentication and omit API-key environment variables. Clean up temporary files on every exit. Failures return actionable Codex setup, login, timeout, or connection messages without exposing raw CLI logs.
 
 ## Explicit, separate processing
 

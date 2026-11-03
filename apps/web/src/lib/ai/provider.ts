@@ -1,9 +1,10 @@
 import "server-only";
 
-import { OpenAIProvider } from "@mnemosyne/ai";
+import { CodexProvider, DEFAULT_CODEX_MODEL } from "@mnemosyne/ai";
 
-export function getAIProvider(): OpenAIProvider {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!apiKey) throw new Error("AI is not configured. Add OPENAI_API_KEY to your local .env.local file.");
-  return new OpenAIProvider(apiKey, process.env.OPENAI_MODEL?.trim() || "gpt-4.1-mini");
+export function getAIProvider(): CodexProvider {
+  return new CodexProvider(
+    process.env.CODEX_MODEL?.trim() || DEFAULT_CODEX_MODEL,
+    process.env.CODEX_BIN?.trim() || "codex",
+  );
 }

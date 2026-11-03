@@ -7,7 +7,7 @@ Mnemosyne turns a person's Markdown knowledge base into durable understanding th
 ## Product principles
 
 - **Local-first:** original documents, extracted knowledge, learning history, and progress persist on the user's machine. Cloud storage is never required.
-- **Explicit AI processing:** remote model calls happen only after a clear user action. AI configuration and API keys stay server-side.
+- **Explicit AI processing:** remote model calls happen only after a clear user action. Codex uses the existing ChatGPT login; authentication and configuration stay server-side.
 - **Source-grounded learning:** concepts, exercises, and evaluation feedback retain references to their original document locations.
 - **Knowledge relationships:** represent concepts and their dependencies as a graph, in addition to preserving source documents.
 - **Separate mastery dimensions:** measure recall, explanation, reconstruction, tracing, and reasoning independently.

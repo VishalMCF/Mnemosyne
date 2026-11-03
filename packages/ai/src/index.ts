@@ -1,2 +1,2 @@
-export * from "./openai";
+export * from "./codex";
 export * from "./types";

@@ -6,6 +6,7 @@ Local-first AI-assisted knowledge retention and cognitive training. Documents, e
 
 - Node.js 20.9 or newer
 - pnpm 9 or newer
+- Codex CLI signed in with ChatGPT (`codex login`) for knowledge extraction and answer evaluation
 
 ## Local development
 
@@ -39,7 +40,7 @@ See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for workflow and [docs/ARCHITECTU
 - Save responses, confidence, latency, hints, feedback, per-skill mastery, and configurable review intervals locally.
 - Inspect source provenance, concept relationships, retention trends, weak skills, and review backlog.
 
-Remote AI processing is optional and requires an OpenAI API key in `.env.local`. The application never requires cloud storage.
+AI processing uses headless `codex exec` with your existing ChatGPT login. No API key is required. The default is `gpt-5.6-sol` with medium reasoning effort; set `CODEX_MODEL` to override the model or `CODEX_BIN` to use an absolute Codex executable path. Sign in once with `codex login` on the machine running the app. Source content is sent to Codex only when you explicitly extract knowledge or submit an answer. The application never requires cloud storage.
 
 ## Learn product development by building Mnemosyne
 

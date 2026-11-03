@@ -1,3 +1,4 @@
+import { CodexProviderError } from "@mnemosyne/ai";
 import { eq } from "drizzle-orm";
 import { extractDocument } from "@/lib/knowledge/extract";
 import { db } from "@/lib/db/client";
@@ -15,10 +16,10 @@ export async function POST(_request: Request, context: Context) {
   } catch (error) {
     const message = errorMessage(error);
     if (message === "Document not found") return jsonError(message, 404);
-    const sanitized = message.includes("OPENAI_API_KEY")
+    const sanitized = error instanceof CodexProviderError
       ? message
-      : "Knowledge extraction failed. Your imported Markdown remains available; correct the local AI configuration or retry.";
-    await db.update(documents).set({ status: "extraction_failed", lastError: message.slice(0, 500), updatedAt: new Date() }).where(eq(documents.id, id));
+      : "Knowledge extraction failed. Your imported Markdown remains available; check Codex and retry.";
+    await db.update(documents).set({ status: "extraction_failed", lastError: sanitized, updatedAt: new Date() }).where(eq(documents.id, id));
     return jsonError(sanitized, 502);
   }
 }

@@ -95,7 +95,7 @@ export async function extractDocument(documentId: string) {
       confidence: Math.round(item.confidence),
       generationVersion: version,
       isCurrent: true,
-      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      model: provider.model,
       promptVersion: PROMPT_VERSION,
     } satisfies typeof concepts.$inferInsert;
     newConcepts.set(key, row);
@@ -115,7 +115,7 @@ export async function extractDocument(documentId: string) {
     type: item.type,
     difficulty: item.difficulty,
     generationVersion: version,
-    model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    model: provider.model,
     promptVersion: PROMPT_VERSION,
     isCurrent: true,
   } satisfies typeof exercises.$inferInsert));
