@@ -34,6 +34,19 @@ export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return jsonError("Cross-origin requests are not allowed.", 403);
   const contentLength = Number(request.headers.get("content-length") ?? 0);
   if (contentLength > MAX_FILES_PER_IMPORT * MAX_FILE_BYTES + 1024 * 1024) return jsonError("Import payload is too large.", 413);
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    const body = await request.json().catch(() => null) as { content?: unknown; title?: unknown } | null;
+    if (!body || typeof body.content !== "string" || !body.content.trim()) return jsonError("Paste some Markdown content first.");
+    if (Buffer.byteLength(body.content, "utf8") > MAX_FILE_BYTES) return jsonError("Pasted content must be 5 MB or smaller.", 413);
+    if (typeof body.title === "string" && body.title.length > 180) return jsonError("Title must be 180 characters or fewer.");
+    const title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : "Pasted note";
+    try {
+      const file = new File([body.content], `${title}.md`, { type: "text/markdown" });
+      return Response.json({ imported: [await importMarkdown(file)] }, { status: 201 });
+    } catch (error) {
+      return jsonError(errorMessage(error));
+    }
+  }
   let form: FormData;
   try { form = await request.formData(); } catch { return jsonError("Expected a multipart form upload."); }
   const files = form.getAll("files").filter((value): value is File => value instanceof File);

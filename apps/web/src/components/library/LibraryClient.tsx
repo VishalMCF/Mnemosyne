@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ExtractionProgress } from "./ExtractionProgress";
 import { aiErrorMessage } from "@/lib/ai/error-message";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
@@ -18,10 +19,13 @@ type SourceRow = {
 };
 
 export function LibraryClient() {
+  const [runIds, setRunIds] = useState<Record<string, string>>({});
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [pastedContent, setPastedContent] = useState("");
+  const [pastedTitle, setPastedTitle] = useState("");
   const refresh = useCallback(async () => {
     const response = await fetch("/api/sources", { cache: "no-store" });
     if (!response.ok) throw new Error("Could not load your local library.");
@@ -50,6 +54,25 @@ export function LibraryClient() {
     finally { setBusy(false); }
   }
 
+  async function savePastedContent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const response = await fetch("/api/sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: pastedTitle, content: pastedContent }),
+      });
+      const body = await response.json() as { error?: string; imported?: Array<{ title: string; duplicate: boolean }> };
+      if (!response.ok) throw new Error(body.error || "Could not save this note.");
+      const saved = body.imported?.[0];
+      setNotice(saved?.duplicate ? `“${saved.title}” is already in your library.` : `“${saved?.title ?? (pastedTitle || "Pasted note")}” was saved and parsed locally.`);
+      setPastedContent(""); setPastedTitle("");
+      await refresh();
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save this note."); }
+    finally { setBusy(false); }
+  }
+
   async function extract(source: SourceRow) {
     if (!source.status || source.status === "imported") {
       setError("This source needs a successful local parse before AI extraction.");
@@ -57,9 +80,15 @@ export function LibraryClient() {
     }
     setBusy(true); setError(""); setNotice("");
     try {
-      const response = await fetch(`/api/documents/${source.documentId}/extract`, { method: "POST" });
-      const body = await response.json() as { error?: string; concepts?: number; exercises?: number };
-      if (!response.ok) throw new Error(body.error || "Extraction failed.");
+      const runId = crypto.randomUUID();
+      setRunIds((previous) => ({ ...previous, [source.documentId]: runId }));
+      const response = await fetch(`/api/documents/${source.documentId}/extract`, { method: "POST", headers: { "X-Extraction-Run-Id": runId } });
+      const body = await response.json() as { runId?: string; error?: string; concepts?: number; exercises?: number };
+      if (body.runId) setRunIds((previous) => ({ ...previous, [source.documentId]: body.runId! }));
+      if (!response.ok) {
+        if (!body.runId) setRunIds((previous) => { const next = { ...previous }; delete next[source.documentId]; return next; });
+        throw new Error(body.error || "Extraction failed.");
+      }
       setNotice(`Extracted ${body.concepts ?? 0} concepts and created ${body.exercises ?? 0} exercises.`);
       await refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Extraction failed."); await refresh(); }
@@ -92,8 +121,16 @@ export function LibraryClient() {
   }
 
   return <div>
+    <form onSubmit={savePastedContent} className="mb-5 rounded-2xl border border-border bg-card p-6 sm:p-8">
+      <label className="block text-sm font-semibold" htmlFor="pasted-title">Paste a note</label>
+      <p className="mt-1 text-sm leading-6 text-muted-foreground">Paste your notes to save them as a Markdown file in your local library and parse them automatically.</p>
+      <input id="pasted-title" value={pastedTitle} onChange={(event) => setPastedTitle(event.target.value)} maxLength={180} placeholder="Note title (optional)" className="mt-4 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm" />
+      <textarea id="pasted-content" value={pastedContent} onChange={(event) => setPastedContent(event.target.value)} maxLength={5 * 1024 * 1024} required rows={8} placeholder="Paste Markdown or plain text here…" className="mt-3 w-full resize-y rounded-lg border border-input bg-background p-3 text-sm leading-6" />
+      <button disabled={busy || !pastedContent.trim()} className="mt-3 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50">{busy ? "Saving…" : "Save and parse note"}</button>
+    </form>
+
     <form onSubmit={upload} className="rounded-2xl border border-dashed border-border bg-card p-6 sm:p-8">
-      <label className="block text-sm font-semibold" htmlFor="markdown-files">Import Markdown files</label>
+      <label className="block text-sm font-semibold" htmlFor="markdown-files">Or import Markdown files</label>
       <p className="mt-1 text-sm leading-6 text-muted-foreground">Files stay on this machine. Choose “Extract knowledge” to process this source through your signed-in Codex account.</p>
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <input id="markdown-files" name="files" type="file" accept=".md,.markdown,text/markdown,text/plain" multiple required className="block w-full text-sm text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-4 file:py-2 file:font-medium file:text-primary" />
@@ -106,7 +143,7 @@ export function LibraryClient() {
 
     <section className="mt-10">
       <div className="mb-4 flex items-end justify-between"><div><h2 className="text-lg font-semibold">Your sources</h2><p className="mt-1 text-sm text-muted-foreground">{sources.length} local document{sources.length === 1 ? "" : "s"}</p></div></div>
-      {sources.length === 0 ? <div className="rounded-2xl border border-border bg-card p-8 text-center"><p className="font-medium">Your library is ready for its first note.</p><p className="mt-2 text-sm text-muted-foreground">Choose a Markdown file above to get started.</p></div> : <div className="space-y-3">{sources.map((source) => <article key={source.id} className="rounded-2xl border border-border bg-card p-5 sm:flex sm:items-center sm:justify-between sm:gap-6"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Link href={`/library/${source.id}`} className="truncate font-semibold hover:text-primary">{source.title}</Link><span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">{labelStatus(source.status)}</span></div><p className="mt-1 truncate text-sm text-muted-foreground">{source.originalFilename} · {source.sectionCount} sections · {source.conceptCount} concepts</p>{source.lastError && <p className="mt-2 text-xs text-destructive">{aiErrorMessage(source.lastError)}</p>}</div><div className="mt-4 flex shrink-0 flex-wrap gap-2 sm:mt-0">{source.status === "imported" && <button type="button" disabled={busy} onClick={() => void parse(source)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Retry local parse</button>}<button type="button" disabled={busy || source.status === "imported"} onClick={() => void extract(source)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-40">{source.status === "extracted" ? "Re-extract with AI" : "Extract knowledge with AI"}</button><button type="button" disabled={busy} onClick={() => void remove(source)} className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground disabled:opacity-40">Delete</button></div></article>)}</div>}
+      {sources.length === 0 ? <div className="rounded-2xl border border-border bg-card p-8 text-center"><p className="font-medium">Your library is ready for its first note.</p><p className="mt-2 text-sm text-muted-foreground">Choose a Markdown file above to get started.</p></div> : <div className="space-y-3">{sources.map((source) => <div key={source.id}><article className="rounded-2xl border border-border bg-card p-5 sm:flex sm:items-center sm:justify-between sm:gap-6"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><Link href={`/library/${source.id}`} className="truncate font-semibold hover:text-primary">{source.title}</Link><span className="rounded-full bg-muted px-2.5 py-1 text-[11px] text-muted-foreground">{labelStatus(source.status)}</span></div><p className="mt-1 truncate text-sm text-muted-foreground">{source.originalFilename} · {source.sectionCount} sections · {source.conceptCount} concepts</p>{source.lastError && <p className="mt-2 text-xs text-destructive">{aiErrorMessage(source.lastError)}</p>}</div><div className="mt-4 flex shrink-0 flex-wrap gap-2 sm:mt-0">{source.status === "imported" && <button type="button" disabled={busy} onClick={() => void parse(source)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium disabled:opacity-40">Retry local parse</button>}<button type="button" disabled={busy || source.status === "imported"} onClick={() => void extract(source)} className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-primary disabled:cursor-not-allowed disabled:opacity-40">{source.status === "extracted" ? "Re-extract with AI" : source.status === "extraction_failed" ? "Resume extraction" : "Extract knowledge with AI"}</button><button type="button" disabled={busy} onClick={() => void remove(source)} className="rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground disabled:opacity-40">Delete</button></div></article><ExtractionProgress documentId={source.documentId} runId={runIds[source.documentId]} onFinished={refresh} /></div>)}</div>}
     </section>
   </div>;
 }

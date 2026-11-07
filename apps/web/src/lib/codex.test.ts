@@ -28,7 +28,7 @@ describe("Codex headless provider", () => {
         const args = process.argv.slice(2);
         const output = args[args.indexOf('--output-last-message') + 1];
         fs.writeFileSync(output, JSON.stringify(${JSON.stringify(evaluation)}));
-        fs.writeFileSync(process.argv[1] + '.capture', JSON.stringify({ args, input, cwd: process.cwd(), hasKey: Boolean(process.env.OPENAI_API_KEY || process.env.CODEX_API_KEY) }));
+        fs.writeFileSync(process.argv[1] + '.capture', JSON.stringify({ args, input, cwd: process.cwd(), schema: JSON.parse(fs.readFileSync(args[args.indexOf('--output-schema') + 1], 'utf8')), hasKey: Boolean(process.env.OPENAI_API_KEY || process.env.CODEX_API_KEY) }));
         console.log('progress logs are not JSON');
       });
     `);
@@ -42,6 +42,8 @@ describe("Codex headless provider", () => {
     expect(capture.args).toContain("read-only");
     expect(capture.args).toContain("shell_tool");
     expect(capture.hasKey).toBe(false);
+    expect(capture.schema.properties.correctness.maximum).toBe(100);
+    expect(capture.schema.properties.explanation.maxLength).toBe(2000);
     expect(capture.input).toContain(JSON.stringify(input));
     expect(capture.args.join(" ")).not.toContain(input.answer);
     await expect(readFile(join(capture.cwd, "result.json"))).rejects.toMatchObject({ code: "ENOENT" });
@@ -49,7 +51,7 @@ describe("Codex headless provider", () => {
 
   it("rejects schema-invalid responses", async () => {
     const { provider } = await fakeCodex(`require('node:fs').writeFileSync(process.argv[process.argv.indexOf('--output-last-message') + 1], JSON.stringify(${JSON.stringify({ ...evaluation, correctness: 101 })}));`);
-    await expect(provider.evaluateResponse(input)).rejects.toThrow();
+    await expect(provider.evaluateResponse(input)).rejects.toThrow("Codex response failed validation: correctness");
   });
 
   it("rejects invalid JSON without returning process logs", async () => {

@@ -1,5 +1,9 @@
 import "server-only";
 
+import path from "node:path";
+import { extractBatches } from "./extraction-batches";
+import { ExtractionCheckpoints } from "./extraction-checkpoints";
+import { repositoryRoot } from "@/lib/db/config";
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { normalizeConceptName } from "@mnemosyne/knowledge";
@@ -9,13 +13,13 @@ import { db } from "@/lib/db/client";
 import { chunks, concepts, documents, diagrams, exerciseConcepts, exercises, masteryStates, relationships, reviewStates, sections } from "@/lib/db/schema";
 
 
-export async function extractDocument(documentId: string) {
+export async function extractDocument(documentId: string, report: (update: import("./extraction-run-store").ProgressUpdate) => void = () => {}) {
   const [document] = await db.select().from(documents).where(eq(documents.id, documentId)).limit(1);
   if (!document) throw new Error("Document not found");
   const [sourceSections, sourceChunks, sourceDiagrams] = await Promise.all([
     db.select().from(sections).where(eq(sections.documentId, document.id)).orderBy(asc(sections.order)),
     db.select().from(chunks).where(eq(chunks.documentId, document.id)).orderBy(asc(chunks.order)),
-    db.select().from(diagrams).where(eq(diagrams.documentId, document.id)),
+    db.select().from(diagrams).where(eq(diagrams.documentId, document.id)).orderBy(asc(diagrams.startLine), asc(diagrams.id)),
   ]);
   if (!sourceSections.length) throw new Error("Document has no parsed content to process");
 
@@ -39,7 +43,8 @@ export async function extractDocument(documentId: string) {
     batchSize += item.content.length;
   }
   if (batch.length) batches.push(batch);
-  const extracted: Awaited<ReturnType<typeof provider.extractKnowledge>>[] = [];
+  const checkpoints = new ExtractionCheckpoints(path.join(repositoryRoot, "data/extraction-checkpoints", document.id));
+  const inputs: Parameters<typeof provider.extractKnowledge>[0][] = [];
   const sentDiagramIds = new Set<string>();
   for (const sectionBatch of batches) {
     const orders = new Set(sectionBatch.map((item) => item.order));
@@ -47,7 +52,7 @@ export async function extractDocument(documentId: string) {
       .filter((diagram) => !sentDiagramIds.has(diagram.id) && orders.has(sectionById.get(diagram.sectionId ?? "")?.order ?? -1))
       .slice(0, 5);
     for (const diagram of diagramsForBatch) sentDiagramIds.add(diagram.id);
-    extracted.push(await provider.extractKnowledge({
+    const batchInput = {
       title: document.title,
       sections: sectionBatch,
       diagrams: diagramsForBatch.map((diagram) => ({
@@ -56,8 +61,11 @@ export async function extractDocument(documentId: string) {
         graph: limitGraph(JSON.parse(diagram.graphJson) as { nodes?: unknown[]; edges?: unknown[] }),
         sectionOrder: sectionById.get(diagram.sectionId ?? "")?.order ?? 0,
       })),
-    }));
+    };
+    inputs.push(batchInput);
   }
+  const extracted = await extractBatches(inputs, provider, checkpoints, report);
+  report({ stage: "validating", message: "Checking source references and merging extracted knowledge" });
   const result = {
     concepts: [...new Map(extracted.flatMap((item) => item.concepts).map((item) => [`${item.sectionOrder}:${normalizeConceptName(item.name)}`, item])).values()],
     relationships: [...new Map(extracted.flatMap((item) => item.relationships).map((item) => [`${item.sectionOrder}:${normalizeConceptName(item.sourceName)}:${normalizeConceptName(item.targetName)}:${item.relationship}`, item])).values()],
@@ -121,6 +129,7 @@ export async function extractDocument(documentId: string) {
   } satisfies typeof exercises.$inferInsert));
 
   let persistedRelationshipCount = 0;
+  report({ stage: "saving", message: "Saving concepts, relationships, and training exercises locally" });
   await db.transaction((tx) => {
     if (oldConceptIds.length) {
       tx.update(concepts).set({ isCurrent: false }).where(inArray(concepts.id, oldConceptIds)).run();
@@ -166,6 +175,7 @@ export async function extractDocument(documentId: string) {
 
     tx.update(documents).set({ extractionVersion: version, status: "extracted", lastError: null, updatedAt: new Date() }).where(eq(documents.id, document.id)).run();
   });
+  await checkpoints.clear().catch((error: unknown) => console.warn("Could not remove completed extraction checkpoints", error instanceof Error ? error.name : "unknown error"));
   return { documentId: document.id, generationVersion: version, concepts: conceptRows.length, relationships: persistedRelationshipCount, exercises: exerciseRows.length };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { SourceContent } from "@/components/content/SourceContent";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 type SourceReference = { documentId: string; title: string; sectionId: string; heading: string; startLine: number };
@@ -85,7 +86,7 @@ export function TrainingClient() {
 
   return <section className="mt-8 rounded-2xl border border-border bg-card p-5 sm:p-8">
     <div className="mb-6 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-wider text-muted-foreground">{prettyType(current.type)} · difficulty {current.difficulty}/5</p><h2 className="mt-2 text-lg font-semibold">Review {index + 1} of {queue.length}</h2></div><div className="h-2 w-32 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary" style={{ width: `${((index + (evaluation ? 1 : 0)) / queue.length) * 100}%` }} /></div></div>
-    <p className="rounded-xl bg-muted p-5 text-base leading-7">{current.prompt}</p>
+    <div className="rounded-xl bg-muted p-5 text-base leading-7"><SourceContent source={current.prompt}/></div>
     {!evaluation ? <form onSubmit={submitAnswer} className="mt-5">
       <p className="mb-3 text-xs leading-5 text-muted-foreground">Codex evaluates your answer against the exercise’s cited source sections using your signed-in account.</p>
       <label htmlFor="answer" className="mb-2 block text-sm font-medium">Your answer</label>
@@ -94,10 +95,10 @@ export function TrainingClient() {
       {showHints && <div className="mt-4 rounded-lg bg-secondary p-4 text-sm text-secondary-foreground"><strong>Source locations</strong><ul className="mt-2 list-inside list-disc">{current.sources.map((source) => <li key={source.sectionId}>{source.title} · {source.heading} · line {source.startLine}</li>)}</ul></div>}
     </form> : <div className="mt-5 space-y-4">
       <div className="grid gap-3 sm:grid-cols-3"><ScoreCard label="Overall" value={evaluation.score} /><ScoreCard label="Correctness" value={evaluation.correctness} /><ScoreCard label="Completeness" value={evaluation.completeness} /></div>
-      <div className="rounded-xl bg-accent p-5"><h3 className="text-sm font-semibold">Feedback</h3><p className="mt-2 text-sm leading-6">{evaluation.explanation}</p></div>
+      <div className="rounded-xl bg-accent p-5"><h3 className="text-sm font-semibold">Feedback</h3><div className="mt-2 text-sm leading-6"><SourceContent source={evaluation.explanation}/></div></div>
       {evaluation.missingPoints.length > 0 && <FeedbackList title="Points to add" items={evaluation.missingPoints} />}
       {evaluation.misconceptions.length > 0 && <FeedbackList title="Misconceptions to revisit" items={evaluation.misconceptions} />}
-      <details className="rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Compare with the source answer</summary><p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{expectedAnswer}</p><p className="mt-3 text-xs text-muted-foreground">Evidence: {evaluation.sourceReferences.map((source) => `${source.documentTitle} · ${source.sectionHeading}, line ${source.startLine}`).join("; ") || "Original source"}</p></details>
+      <details className="rounded-xl border border-border p-4"><summary className="cursor-pointer text-sm font-medium">Compare with the source answer</summary><div className="mt-3 text-sm leading-6 text-muted-foreground"><SourceContent source={expectedAnswer}/></div><p className="mt-3 text-xs text-muted-foreground">Evidence: {evaluation.sourceReferences.map((source) => `${source.documentTitle} · ${source.sectionHeading}, line ${source.startLine}`).join("; ") || "Original source"}</p></details>
       <button onClick={nextExercise} className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground">{index + 1 === queue.length ? "Finish session" : "Next exercise →"}</button>
     </div>}
     {error && <p role="alert" className="mt-4 rounded-lg bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
@@ -109,7 +110,7 @@ function ScoreCard({ label, value }: { label: string; value: number }) {
 }
 
 function FeedbackList({ title, items }: { title: string; items: string[] }) {
-  return <div className="rounded-xl border border-border p-4"><h3 className="text-sm font-semibold">{title}</h3><ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-6 text-muted-foreground">{items.map((item, index) => <li key={`${index}-${item}`}>{item}</li>)}</ul></div>;
+  return <div className="rounded-xl border border-border p-4"><h3 className="text-sm font-semibold">{title}</h3><ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-6 text-muted-foreground">{items.map((item, index) => <li key={`${index}-${item}`}><SourceContent source={item}/></li>)}</ul></div>;
 }
 
 function prettyType(value: string) { return value.replaceAll("_", " "); }

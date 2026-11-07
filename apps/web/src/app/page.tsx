@@ -38,6 +38,7 @@ export default function HomePage() {
           <Link href="/training" className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90">Start a review <span aria-hidden="true">→</span></Link>
         </header>
 
+        <section className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-5"><div><h2 className="font-semibold">Explore the Cognitive Learning Studio</h2><p className="mt-1 text-sm text-muted-foreground">A local, interactive prototype for reading, reconstruction, and independent recall.</p></div><Link href="/studio" className="rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground">Open Studio →</Link></section>
         <DashboardMetrics />
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[1.35fr_0.85fr]">

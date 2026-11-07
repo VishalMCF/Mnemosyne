@@ -188,3 +188,45 @@
     accent-color: var(--primary);
   }
 }
+
+/* Code colors follow the nearest light/dark theme, including the Studio. */
+:root {
+  --code-background: oklch(0.975 0 0);
+  --code-foreground: oklch(0.25 0 0);
+  --code-keyword: #7c3aad;
+  --code-builtin: #075985;
+  --code-string: #166534;
+  --code-comment: #596579;
+  --code-number: #92400e;
+  --code-function: #1d4ed8;
+  --code-decorator: #9d174d;
+  --code-operator: #52525b;
+}
+.dark {
+  --code-background: oklch(0.18 0 0);
+  --code-foreground: oklch(0.93 0 0);
+  --code-keyword: #d8b4fe;
+  --code-builtin: #7dd3fc;
+  --code-string: #86efac;
+  --code-comment: #a1adbd;
+  --code-number: #fcd34d;
+  --code-function: #93c5fd;
+  --code-decorator: #f9a8d4;
+  --code-operator: #d4d4d8;
+}
+.mn-source-content { min-width: 0; line-height: 1.85; }
+.mn-source-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mn-code { margin: 24px 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--code-background); color: var(--code-foreground); }
+.mn-code figcaption { padding: 10px 18px; border-bottom: 1px solid var(--border); font: 500 14px var(--font-sans); color: var(--muted-foreground); }
+.mn-code pre { margin: 0; padding: 20px; overflow-x: auto; white-space: pre; tab-size: 4; font: 16px/1.8 var(--font-mono); }
+.mn-code code { font: inherit; color: inherit; }
+.mn-token-keyword { color: var(--code-keyword); }
+.mn-token-builtin { color: var(--code-builtin); }
+.mn-token-string { color: var(--code-string); }
+.mn-token-comment { color: var(--code-comment); font-style: italic; }
+.mn-token-number { color: var(--code-number); }
+.mn-token-function { color: var(--code-function); }
+.mn-token-decorator { color: var(--code-decorator); }
+.mn-token-operator { color: var(--code-operator); }
+.learning-studio .s-source .mn-source-content { font-family: var(--font-serif); font-size: 21px; line-height: 1.9; }
+@media (max-width: 600px) { .mn-code pre { padding: 16px; } .learning-studio .s-source .mn-source-content { font-size: 19px; } }
